@@ -8,6 +8,7 @@ from task_manager.db.database import init_db
 
 
 @click.group(invoke_without_command=True)
+@click.version_option(package_name="claude-task-manager", prog_name="task-manager")
 @click.pass_context
 def main(ctx: click.Context) -> None:
     """Claude Task Manager — Linear-like task management for your local machine."""
