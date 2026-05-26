@@ -157,6 +157,17 @@ input, textarea, select { font-family: inherit; font-size: 13px; outline: none; 
 
 #view-title { font-size: 15px; font-weight: 600; flex: 1; color: var(--text); }
 
+.live-indicator {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--status-done);
+  flex-shrink: 0;
+  animation: pulse 2.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
 .header-actions { display: flex; gap: 8px; }
 
 .btn-primary {

@@ -681,5 +681,12 @@ document.getElementById('search-input').addEventListener('input', e => {
   }, 250);
 });
 
+/* ── Auto-refresh (keeps UI in sync with MCP server writes) ──────────────── */
+setInterval(() => {
+  if (document.getElementById('modal-overlay')) return; // skip while modal open
+  if (document.hidden) return;                          // skip while tab hidden
+  refreshAll().catch(() => {});
+}, 10000);
+
 /* ── Boot ────────────────────────────────────────────────────────────────── */
 refreshAll().catch(err => console.error('Boot failed:', err));
