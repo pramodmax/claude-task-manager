@@ -157,34 +157,42 @@ async function renderProjectHeader() {
   header.classList.remove('hidden');
   try {
     const stats = await api.get(`/api/projects/${state.currentProjectId}/stats`);
+    const pathHtml = p.path
+      ? `<span class="project-detail-path-value">${escHtml(p.path)}</span>`
+      : `<span class="path-missing">Not recorded — Claude should pass path=os.getcwd() when starting a session</span>`;
     header.innerHTML = `
-      <div class="project-header-top">
-        ${projectAvatarHtml(p, 'project-header-avatar')}
-        <div class="project-header-info">
-          <div class="project-header-name">${escHtml(p.name)}</div>
-          ${p.path ? `<div class="project-header-path" title="${escHtml(p.path)}">${escHtml(p.path)}</div>` : ''}
+      <div class="project-detail-card">
+        <div class="project-detail-title-row">
+          ${projectAvatarHtml(p, 'project-header-avatar')}
+          <span class="project-detail-name">${escHtml(p.name)}</span>
+          <button class="btn-secondary" id="ph-edit" style="margin-left:auto">Edit</button>
+          <button class="btn-danger" id="ph-delete">Delete</button>
         </div>
-        <button class="btn-secondary" id="ph-edit">Edit Project</button>
-      </div>
-      <div class="project-stats">
-        <div class="stat">
-          <span class="stat-value">${stats.total_issues}</span>
-          <span class="stat-label">Total Issues</span>
+        <div class="project-detail-row">
+          <span class="project-detail-label">Folder</span>
+          ${pathHtml}
         </div>
-        <div class="stat">
-          <span class="stat-value">${stats.open_issues}</span>
-          <span class="stat-label">Open</span>
-        </div>
-        <div class="stat">
-          <span class="stat-value">${fmtTokens(stats.tokens_input)}</span>
-          <span class="stat-label">Tokens In</span>
-        </div>
-        <div class="stat">
-          <span class="stat-value">${fmtTokens(stats.tokens_output)}</span>
-          <span class="stat-label">Tokens Out</span>
+        <div class="project-detail-stats">
+          <div class="project-stat-card">
+            <span class="project-stat-value">${stats.total_issues}</span>
+            <span class="project-stat-label">Total Issues</span>
+          </div>
+          <div class="project-stat-card">
+            <span class="project-stat-value">${stats.open_issues}</span>
+            <span class="project-stat-label">Open</span>
+          </div>
+          <div class="project-stat-card">
+            <span class="project-stat-value">${fmtTokens(stats.tokens_input)}</span>
+            <span class="project-stat-label">Tokens In</span>
+          </div>
+          <div class="project-stat-card">
+            <span class="project-stat-value">${fmtTokens(stats.tokens_output)}</span>
+            <span class="project-stat-label">Tokens Out</span>
+          </div>
         </div>
       </div>`;
     header.querySelector('#ph-edit').onclick = () => openProjectForm(p);
+    header.querySelector('#ph-delete').onclick = () => confirmDeleteProject(p);
   } catch {
     header.classList.add('hidden');
   }
@@ -529,6 +537,36 @@ function openIssueForm(issue = null) {
   };
 }
 
+/* ── Confirm delete project ──────────────────────────────────────────────── */
+function confirmDeleteProject(project) {
+  showModal(`
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Delete Project</span>
+        <button class="modal-close" id="cdp-close">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-msg">Delete project <strong>${escHtml(project.name)}</strong>?<br>
+        This will permanently delete the project and <strong>all its issues and comments</strong>. This cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" id="cdp-cancel">Cancel</button>
+        <button class="btn-danger" id="cdp-confirm">Delete Project & All Issues</button>
+      </div>
+    </div>`);
+  document.getElementById('cdp-close').onclick = closeModal;
+  document.getElementById('cdp-cancel').onclick = closeModal;
+  document.getElementById('cdp-confirm').onclick = async () => {
+    try {
+      await api.delete(`/api/projects/${project.id}`);
+      toast(`Deleted project "${project.name}"`, 'info');
+      state.currentProjectId = null;
+      closeModal();
+      await refreshAll();
+    } catch (e) { toast('Delete failed: ' + e.message, 'error'); }
+  };
+}
+
 /* ── Project form modal ──────────────────────────────────────────────────── */
 function openProjectForm(project = null) {
   const isEdit = !!project;
@@ -565,6 +603,7 @@ function openProjectForm(project = null) {
         </div>
       </div>
       <div class="modal-footer">
+        ${isEdit ? '<button class="btn-danger" id="pf-delete">Delete Project</button>' : ''}
         <button class="btn-cancel" id="pf-cancel">Cancel</button>
         <button class="btn-save" id="pf-save">${isEdit ? 'Save Changes' : 'Create Project'}</button>
       </div>
@@ -572,6 +611,10 @@ function openProjectForm(project = null) {
 
   document.getElementById('pf-close').onclick = closeModal;
   document.getElementById('pf-cancel').onclick = closeModal;
+
+  if (isEdit) {
+    document.getElementById('pf-delete').onclick = () => confirmDeleteProject(project);
+  }
 
   document.getElementById('pf-color-picker').addEventListener('click', e => {
     const opt = e.target.closest('.color-opt');

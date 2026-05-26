@@ -234,35 +234,28 @@ Follow the [Installation](#installation) steps above, then verify:
 
 ```bash
 task-manager --help
-which task-manager   # note the full path — you may need it in Step 2
 ```
 
 ### Step 2 — Register the MCP server globally
 
-This makes the task manager available in **every** Claude Code session on your machine.
+Use the `claude mcp add` command with `--scope user` to register it once for all projects on your machine:
 
-Edit (or create) `~/.claude/claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "task-manager": {
-      "command": "task-manager",
-      "args": ["mcp-server"]
-    }
-  }
-}
+```bash
+claude mcp add --scope user task-manager task-manager mcp-server
 ```
 
-If `task-manager` is not in your PATH, replace `"command": "task-manager"` with the full path from `which task-manager`, e.g. `"/Users/you/.local/bin/task-manager"`.
+This writes to `~/.claude.json` — the file Claude Code CLI actually uses for user-scope MCP servers. Verify it worked:
 
-> **Project-only scope:** If you only want tracking for a single project, put the same JSON in `.claude/settings.json` inside that project folder instead of the global config.
+```bash
+claude mcp list
+# task-manager: task-manager mcp-server - ✓ Connected
+```
+
+> **Note:** Do not add `mcpServers` to `~/.claude/settings.json` — Claude Code CLI does not read MCP servers from that file. The `claude mcp add` command is the correct way.
 
 ### Step 3 — Add the Stop hook
 
-The Stop hook automatically marks a session complete whenever you exit Claude Code, even if you close the terminal.
-
-Edit (or create) `~/.claude/settings.json`:
+The Stop hook automatically marks a session complete when you exit Claude Code. Add it to `~/.claude/settings.json` (keep any existing keys alongside):
 
 ```json
 {
@@ -284,20 +277,22 @@ Edit (or create) `~/.claude/settings.json`:
 
 ### Step 4 — Tell Claude to use it (global CLAUDE.md)
 
-Add the following to `~/.claude/CLAUDE.md` (create it if it doesn't exist). Claude reads this file at the start of every session:
+Claude reads `~/.claude/CLAUDE.md` at the start of every session. Without instructions here, Claude has no way of knowing it should call the task manager tools.
+
+Add the following to `~/.claude/CLAUDE.md` (keep any existing content — just append):
 
 ```markdown
 ## Task tracking
 
-A task manager MCP server is available. Use it to track every session.
+A task manager MCP server (`task-manager`) is available in every session.
 
 At the start of EVERY session call:
   task_manager_create_session(title="<short description of the task>", path=os.getcwd())
 
-At key milestones during the session call:
+At key milestones call:
   task_manager_update_session(progress_note="<what was accomplished>", tokens_input=N, tokens_output=N)
 
-At the end of the session call:
+At the end call:
   task_manager_complete_session(summary="<what was done>", tokens_input=N, tokens_output=N)
 ```
 
@@ -322,10 +317,10 @@ Claude will call `task_manager_create_session` automatically. Open `http://local
 
 | File | Purpose |
 |------|---------|
-| `~/.claude/claude_desktop_config.json` | Global MCP server registration |
+| `~/.claude.json` | Global MCP server registrations (written by `claude mcp add --scope user`) |
 | `~/.claude/settings.json` | Global hooks (Stop hook) |
 | `~/.claude/CLAUDE.md` | Instructions Claude reads at the start of every session |
-| `.claude/settings.json` *(per-project)* | Project-scoped MCP + hooks override |
+| `.mcp.json` *(per-project)* | Project-scoped MCP servers |
 
 ---
 
@@ -358,6 +353,33 @@ Claude will call `task_manager_create_session` automatically. Open `http://local
 3. **Session end** — Claude calls `task_manager_complete_session(summary="…")`, or the Stop hook fires `task-manager session complete` automatically on exit.
 
 Each unique working directory gets its own project. Clicking that project in the UI shows the folder path and cumulative token usage across all sessions run in it.
+
+---
+
+## Upgrading
+
+To get the latest changes after pulling an update:
+
+```bash
+cd claude-task-manager
+git pull
+
+# Reinstall the tool so the new UI and code are picked up
+uv tool install --reinstall .
+```
+
+Then restart the task manager and hard-refresh the browser:
+
+```bash
+# Stop the running instance (Ctrl+C), then:
+task-manager
+
+# In the browser:
+# Mac:   Cmd+Shift+R
+# Linux: Ctrl+Shift+R
+```
+
+> **Why reinstall?** `uv tool install` copies files at install time. Pulling new code or editing source files has no effect until you reinstall — the running server continues to serve the old copied files.
 
 ---
 
