@@ -226,9 +226,22 @@ Edit `docker-compose.yml` and change `"7654:7654"` to `"YOUR_PORT:7654"`.
 
 ## Claude Code Integration
 
-### 1. Configure the MCP server
+There are four steps to wire Claude Code up to this task manager so every session is automatically tracked.
 
-Copy `.claude/settings.json` from this repo to your project's `.claude/settings.json`, or merge the relevant sections:
+### Step 1 — Install the task manager
+
+Follow the [Installation](#installation) steps above, then verify:
+
+```bash
+task-manager --help
+which task-manager   # note the full path — you may need it in Step 2
+```
+
+### Step 2 — Register the MCP server globally
+
+This makes the task manager available in **every** Claude Code session on your machine.
+
+Edit (or create) `~/.claude/claude_desktop_config.json`:
 
 ```json
 {
@@ -237,7 +250,22 @@ Copy `.claude/settings.json` from this repo to your project's `.claude/settings.
       "command": "task-manager",
       "args": ["mcp-server"]
     }
-  },
+  }
+}
+```
+
+If `task-manager` is not in your PATH, replace `"command": "task-manager"` with the full path from `which task-manager`, e.g. `"/Users/you/.local/bin/task-manager"`.
+
+> **Project-only scope:** If you only want tracking for a single project, put the same JSON in `.claude/settings.json` inside that project folder instead of the global config.
+
+### Step 3 — Add the Stop hook
+
+The Stop hook automatically marks a session complete whenever you exit Claude Code, even if you close the terminal.
+
+Edit (or create) `~/.claude/settings.json`:
+
+```json
+{
   "hooks": {
     "Stop": [
       {
@@ -254,37 +282,54 @@ Copy `.claude/settings.json` from this repo to your project's `.claude/settings.
 }
 ```
 
-If `task-manager` is not in your PATH, use the full path or `uv run`:
+### Step 4 — Tell Claude to use it (global CLAUDE.md)
 
-```json
-{
-  "mcpServers": {
-    "task-manager": {
-      "command": "uv",
-      "args": ["run", "--project", "/path/to/claude-task-manager", "task-manager", "mcp-server"]
-    }
-  }
-}
-```
-
-### 2. Add session-tracking instructions
-
-Add to your project's `CLAUDE.md` (or global `~/.claude/CLAUDE.md`):
+Add the following to `~/.claude/CLAUDE.md` (create it if it doesn't exist). Claude reads this file at the start of every session:
 
 ```markdown
 ## Task tracking
 
+A task manager MCP server is available. Use it to track every session.
+
 At the start of EVERY session call:
-  task_manager_create_session(title="<what you're doing>", path=os.getcwd())
+  task_manager_create_session(title="<short description of the task>", path=os.getcwd())
 
-At key milestones call:
-  task_manager_update_session(progress_note="<what was accomplished>")
+At key milestones during the session call:
+  task_manager_update_session(progress_note="<what was accomplished>", tokens_input=N, tokens_output=N)
 
-At the end call:
-  task_manager_complete_session(summary="<what was done>")
+At the end of the session call:
+  task_manager_complete_session(summary="<what was done>", tokens_input=N, tokens_output=N)
 ```
 
-### 3. Available MCP tools
+### Step 5 — Start the UI and verify
+
+Open two terminals:
+
+```bash
+# Terminal 1 — keep the UI running
+task-manager
+
+# Terminal 2 — start a Claude Code session in any project
+cd ~/your-project
+claude
+```
+
+Claude will call `task_manager_create_session` automatically. Open `http://localhost:7654` — you should see a new project named after your folder with the session listed under it.
+
+---
+
+### Key file locations
+
+| File | Purpose |
+|------|---------|
+| `~/.claude/claude_desktop_config.json` | Global MCP server registration |
+| `~/.claude/settings.json` | Global hooks (Stop hook) |
+| `~/.claude/CLAUDE.md` | Instructions Claude reads at the start of every session |
+| `.claude/settings.json` *(per-project)* | Project-scoped MCP + hooks override |
+
+---
+
+### Available MCP tools
 
 | Tool | Description |
 |------|-------------|
@@ -306,11 +351,11 @@ At the end call:
 
 ### How session tracking works
 
-1. **Session start** — Claude calls `task_manager_create_session(title="…", path=os.getcwd())`. A project is auto-created (or matched) for the working directory — named after the folder, with a deterministic color. A new issue is created in that project with status `in_progress` and assignee `claude`.
+1. **Session start** — Claude calls `task_manager_create_session(title="…", path=os.getcwd())`. A project is auto-created (or matched) for the working directory — named after the folder with a deterministic color. A new issue is created in that project with status `in_progress` and assignee `claude`.
 
-2. **Progress** — `task_manager_update_session("Milestone note")` appends a comment to the session issue and optionally updates token counts.
+2. **Progress** — `task_manager_update_session("Milestone note")` appends a comment to the session issue and optionally updates cumulative token counts.
 
-3. **Session end** — Claude calls `task_manager_complete_session(summary="…")` or the `Stop` hook fires `task-manager session complete` automatically.
+3. **Session end** — Claude calls `task_manager_complete_session(summary="…")`, or the Stop hook fires `task-manager session complete` automatically on exit.
 
 Each unique working directory gets its own project. Clicking that project in the UI shows the folder path and cumulative token usage across all sessions run in it.
 
