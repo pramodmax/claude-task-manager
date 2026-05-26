@@ -1,0 +1,11 @@
+services:
+  task-manager:
+    build: .
+    ports:
+      - "7654:7654"
+    volumes:
+      - task-manager-data:/data
+    restart: unless-stopped
+
+volumes:
+  task-manager-data:

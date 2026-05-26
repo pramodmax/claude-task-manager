@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "task-manager": {
+      "command": "task-manager",
+      "args": ["mcp-server"]
+    }
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "task-manager session complete --summary 'Session ended'"
+          }
+        ]
+      }
+    ]
+  }
+}

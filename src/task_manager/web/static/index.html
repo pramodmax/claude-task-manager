@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Manager</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app">
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-logo">
+      <img src="/static/logo.svg" class="app-logo" alt="Task Manager logo">
+      <span class="app-name">Task Manager</span>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="nav-item active" data-nav="all">
+        <span class="icon">≡</span> All Issues
+      </div>
+      <div class="nav-item" data-nav="mine">
+        <span class="icon">◈</span> My Issues
+      </div>
+      <div class="nav-item" data-nav="backlog">
+        <span class="icon">○</span> Backlog
+      </div>
+    </div>
+
+    <div class="separator"></div>
+
+    <div class="sidebar-section" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+      <div class="sidebar-label">Projects</div>
+      <div id="project-list" class="sidebar-projects"></div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="btn-new-project" id="btn-new-project">+ New Project</button>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main id="content">
+    <header id="view-header">
+      <h1 id="view-title">All Issues</h1>
+      <div class="header-actions">
+        <button class="btn-primary" id="btn-new-issue">+ New Issue</button>
+        <button class="btn-secondary" id="btn-toggle-view">⊞ Board</button>
+      </div>
+    </header>
+
+    <div id="search-bar">
+      <input type="text" id="search-input" placeholder="Search issues…">
+    </div>
+
+    <div id="project-header" class="hidden"></div>
+
+    <div id="issue-list-view"></div>
+    <div id="board-view" class="hidden"></div>
+  </main>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
