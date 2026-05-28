@@ -12,7 +12,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "task-manager session complete --summary 'Session ended'"
+            "command": "task-manager session complete --from-hook"
           }
         ]
       }

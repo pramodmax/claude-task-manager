@@ -7,6 +7,26 @@ from task_manager.db import database as db
 from task_manager.db.database import init_db
 
 
+def _extract_tokens_from_transcript(transcript_path: str) -> tuple[int, int]:
+    """Sum input/output token usage from a Claude Code transcript JSONL file."""
+    if not transcript_path:
+        return 0, 0
+    try:
+        from pathlib import Path
+        total_input = total_output = 0
+        for line in Path(transcript_path).read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            event = json.loads(line)
+            usage = event.get("message", {}).get("usage", {})
+            total_input += usage.get("input_tokens", 0)
+            total_output += usage.get("output_tokens", 0)
+        return total_input, total_output
+    except Exception:
+        return 0, 0
+
+
 @click.group(invoke_without_command=True)
 @click.version_option(package_name="claude-task-manager", prog_name="task-manager")
 @click.pass_context
@@ -93,18 +113,33 @@ def session_update(message: str, status: str | None) -> None:
 
 @session.command("complete")
 @click.option("--summary", "-s", default="", help="Completion summary")
-def session_complete(summary: str) -> None:
+@click.option("--tokens-input", type=int, default=0, help="Total input tokens used")
+@click.option("--tokens-output", type=int, default=0, help="Total output tokens used")
+@click.option("--from-hook", is_flag=True, help="Read Claude Code Stop hook JSON from stdin and auto-extract token counts")
+def session_complete(summary: str, tokens_input: int, tokens_output: int, from_hook: bool) -> None:
     """Mark the current session issue as done."""
     init_db()
+    if from_hook:
+        try:
+            hook_data = json.load(sys.stdin)
+            transcript_path = hook_data.get("transcript_path", "")
+            tokens_input, tokens_output = _extract_tokens_from_transcript(transcript_path)
+        except Exception:
+            pass
     from task_manager.config import SESSION_FILE
     if not SESSION_FILE.exists():
         sys.exit(0)
     issue_id = SESSION_FILE.read_text().strip()
     if summary:
         db.add_comment(issue_id, summary, author="claude")
-    db.update_issue(issue_id, status="done")
+    kwargs: dict = {"status": "done"}
+    if tokens_input:
+        kwargs["tokens_input"] = tokens_input
+    if tokens_output:
+        kwargs["tokens_output"] = tokens_output
+    db.update_issue(issue_id, **kwargs)
     SESSION_FILE.unlink(missing_ok=True)
-    click.echo(f"Session {issue_id} marked complete")
+    click.echo(f"Session {issue_id} marked complete (in={tokens_input} out={tokens_output})")
 
 
 @session.command("current")
